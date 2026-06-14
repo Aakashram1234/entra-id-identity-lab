@@ -75,3 +75,25 @@ The fix pattern in production provisioning code is a short retry-with-backoff af
 
 - Generate test sign-in traffic, review report-only results in the Conditional Access insights workbook, then enforce CA001–CA004 one at a time.
 - Proceed to Phase 2 (OIDC application with PKCE).
+
+---
+
+## Evidence
+
+Screenshots from the deployed and enforced Phase 1 tenant.
+
+**Identities provisioned** - 15 test users plus the dedicated Cloud Admin and the excluded Break-Glass account, with Entra ID P2 assigned to the admin accounts.
+
+![Active users in the tenant](images/01-active-users.png)
+
+**Conditional Access baseline (report-only)** - all four policies (CA001-CA004) staged in report-only first: evaluating real sign-ins and logging impact without blocking anyone.
+
+![Conditional Access policies in report-only](images/02-ca-policies-report-only.png)
+
+**CA001 enforced** - flipped from report-only to On, while CA002-CA004 remain report-only. Admins are not exempt; only the dedicated break-glass account is excluded, as the deliberate recovery path.
+
+![CA001 enabled](images/03-ca001-enabled.png)
+
+**MFA enforcement verified** - a standard user (priya.sharma) signing in is stopped and required to register MFA. Direct, end-to-end proof the enforced policy works.
+
+![MFA registration enforced at sign-in](images/04-mfa-enforced.png)
