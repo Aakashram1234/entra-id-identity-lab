@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Entra ID Lab — OIDC + PKCE Demo</title>
+  <script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3/lib/msal-browser.min.js"></script>
+  <style>
+    :root { --bg:#0f172a; --card:#1e293b; --ink:#e2e8f0; --muted:#94a3b8; --accent:#38bdf8; --good:#34d399; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--ink); line-height:1.5; }
+    .wrap { max-width:900px; margin:0 auto; padding:32px 20px 64px; }
+    h1 { font-size:1.6rem; margin:0 0 4px; }
+    .sub { color:var(--muted); margin:0 0 24px; }
+    .card { background:var(--card); border:1px solid #334155; border-radius:12px; padding:20px; margin:16px 0; }
+    button { font-size:0.95rem; padding:10px 18px; border-radius:8px; border:none; cursor:pointer; background:var(--accent); color:#06283d; font-weight:600; margin-right:8px; }
+    button.secondary { background:#334155; color:var(--ink); }
+    .status { font-size:0.9rem; color:var(--muted); }
+    .who { font-size:1.1rem; font-weight:600; color:var(--good); }
+    pre { background:#0b1220; border:1px solid #334155; border-radius:8px; padding:14px; overflow:auto; font-size:0.82rem; color:#cbd5e1; max-height:340px; }
+    .label { font-size:0.8rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin:18px 0 6px; }
+    .pill { display:inline-block; background:#0b1220; border:1px solid #334155; border-radius:999px; padding:3px 10px; font-size:0.78rem; margin:2px 4px 2px 0; color:#cbd5e1; }
+    a { color:var(--accent); }
+    .hidden { display:none; }
+    code { background:#0b1220; padding:1px 5px; border-radius:4px; font-size:0.85em; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Enterprise Identity Lab — OIDC + PKCE</h1>
+    <p class="sub">A single-page app authenticating against Microsoft Entra ID using the OAuth 2.0 authorization-code flow with PKCE. Phase 2.</p>
+    <div class="card">
+      <button id="signin">Sign in with Entra ID</button>
+      <button id="signout" class="secondary hidden">Sign out</button>
+      <div class="status" id="status">Not signed in.</div>
+    </div>
+    <div class="card hidden" id="result">
+      <div class="who" id="who"></div>
+      <div class="label">Granted scopes (access token)</div>
+      <div id="scopes"></div>
+      <div class="label">ID token — decoded claims</div>
+      <pre id="idclaims"></pre>
+      <div class="label">Access token — decoded claims</div>
+      <pre id="accessclaims"></pre>
+      <p class="status">Tip: copy a raw token into <a href="https://jwt.ms" target="_blank">jwt.ms</a> to inspect it there too. Raw tokens are in the browser console (<code>F12</code>).</p>
+    </div>
+  </div>
+  <script>
+    const msalConfig = {
+      auth: {
+        clientId: "7d97d229-2dd8-4cd7-b48a-877007defe81",
+        authority: "https://login.microsoftonline.com/d4f7206a-d87e-44b7-9805-e1b5f4340fa4",
+        redirectUri: "http://localhost:3000"
+      },
+      cache: { cacheLocation: "sessionStorage" }
+    };
+    const loginRequest = { scopes: ["User.Read"] };
+    const msalInstance = new msal.PublicClientApplication(msalConfig);
+
+    function decodeJwt(token) {
+      try {
+        const payload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+        const json = decodeURIComponent(atob(payload).split("").map(c => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2)).join(""));
+        return JSON.stringify(JSON.parse(json), null, 2);
+      } catch (e) { return "(could not decode: " + e.message + ")"; }
+    }
+    const $ = id => document.getElementById(id);
+    function showSignedOut() {
+      $("status").textContent = "Not signed in.";
+      $("signin").classList.remove("hidden");
+      $("signout").classList.add("hidden");
+      $("result").classList.add("hidden");
+    }
+    async function showAccount(account) {
+      $("status").textContent = "Signed in. Tokens acquired via auth-code + PKCE.";
+      $("signin").classList.add("hidden");
+      $("signout").classList.remove("hidden"); $("result").classList.remove("hidden");
+      $("who").textContent = "Signed in as: " + (account.name || account.username) + "  (" + account.username + ")";
+      let tokenResponse;
+      try {
+        tokenResponse = await msalInstance.acquireTokenSilent({ ...loginRequest, account });
+      } catch (e) {
+        console.warn("Silent token failed, redirecting:", e);
+        return msalInstance.acquireTokenRedirect(loginRequest);
+      }
+      $("scopes").innerHTML = (tokenResponse.scopes || []).map(s => '<span class="pill">' + s + '</span>').join("");
+      $("idclaims").textContent = decodeJwt(tokenResponse.idToken);
+      $("accessclaims").textContent = decodeJwt(tokenResponse.accessToken);
+      console.log("=== ID TOKEN ===\n" + tokenResponse.idToken);
+      console.log("=== ACCESS TOKEN ===\n" + tokenResponse.accessToken);
+    }
+    $("signin").addEventListener("click", () => msalInstance.loginRedirect(loginRequest));
+    $("signout").addEventListener("click", () => msalInstance.logoutRedirect());
+    (async () => {
+      await msalInstance.initialize();
+      try {
+        const resp = await msalInstance.handleRedirectPromise();
+        if (resp && resp.account) { msalInstance.setActiveAccount(resp.account); await showAccount(resp.account); return; }
+        const accounts = msalInstance.getAllAccounts();
+        if (accounts.length > 0) { msalInstance.setActiveAccount(accounts[0]); await showAccount(accounts[0]); }
+        else { showSignedOut(); }
+      } catch (e) { $("status").textContent = "Auth error: " + e.message; console.error(e); }
+    })();
+  </script>
+</body>
+</html>
+
+
