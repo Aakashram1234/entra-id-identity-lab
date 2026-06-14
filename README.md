@@ -40,11 +40,14 @@ Provision the tenant and establish least-privilege access controls.
 - 📄 Write-up: [`docs/phase1-access-management.md`](docs/phase1-access-management.md)
 - 🔧 Scripts: [`scripts/Deploy-Phase1-Lab.ps1`](scripts/Deploy-Phase1-Lab.ps1), [`scripts/Deploy-CA-Policies.ps1`](scripts/Deploy-CA-Policies.ps1)
 
-### Phase 2 — Workload identity & OAuth/OIDC app 🔜
-- Register an application in Entra ID
-- Build a web app using the **OIDC authorization-code flow with PKCE** (MSAL)
-- App roles + RBAC, ID-token / access-token deep-dive
+### Phase 2 — Workload identity & OAuth/OIDC app ✅
+- Registered a single-tenant application in Entra ID (SPA platform, PKCE, no implicit grant)
+- Built a single-page app using the **OIDC authorization-code flow with PKCE** (MSAL.js)
+- **Token deep-dive** — ID token vs access token (audience, issuer), key claims, and the `amr` claim showing Phase 1's MFA policy in the token
+- **App roles + RBAC** — defined and assigned roles, producing a `roles` claim consumed by the app
 - Write-up: Firebase Authentication vs Entra ID — an architectural comparison
+- 📄 Write-up: [`docs/phase2-oidc-pkce.md`](docs/phase2-oidc-pkce.md)
+- 🔧 App: [`app/index.html`](app/index.html)
 
 ### Phase 3 — Identity governance & threat detection 🔜
 - **Privileged Identity Management** — eligible (just-in-time) admin assignments
@@ -70,11 +73,14 @@ Provision the tenant and establish least-privilege access controls.
 entra-id-identity-lab/
 ├── README.md
 ├── docs/                       # Phase write-ups, decisions, lessons learned
-│   └── phase1-access-management.md
+│   ├── phase1-access-management.md
+│   ├── phase2-oidc-pkce.md
+│   └── images/                 # Evidence screenshots
 ├── scripts/                    # PowerShell / Graph deployment scripts
 │   ├── Deploy-Phase1-Lab.ps1
 │   └── Deploy-CA-Policies.ps1
-├── app/                        # Phase 2 — OIDC application
+├── app/                        # Phase 2 — OIDC + PKCE single-page app
+│   └── index.html
 └── detections/                 # Phase 3 — Wazuh rules & detection logic
 ```
 
